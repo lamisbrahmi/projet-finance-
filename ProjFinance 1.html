@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>compte courant </title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f9;
+            margin: 20px;
+        }
+
+        h1, h2 {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        form {
+            max-width: 600px;
+            margin: 20px auto;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 10px;
+            background-color: #fff;
+        }
+
+        form label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+
+        form input {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+
+        form button {
+            width: 100%;
+            padding: 10px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        form button:hover {
+            background-color: #0056b3;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .error {
+            color: red;
+            text-align: center;
+            margin-bottom: 15px;
+            font-weight: bold;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+
+        th, td {
+            border: 1px solid #ddd;
+            padding: 10px;
+            text-align: center;
+        }
+
+        th {
+            background-color: #333;
+            color: white;
+        }
+
+        .taux-container {
+            max-width: 600px;
+            margin: 20px auto;
+            font-size: 18px;
+            font-weight: bold;
+            text-align: center;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            background-color: #f9f9f9;
+        }
+
+        button {
+            display: block;
+            margin: 10px auto;
+            padding: 10px 20px;
+            font-size: 16px;
+            background-color: #28a745;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background-color: #218838;
+        }
+    </style>
+</head>
+<body>
+    <h1>Bienvenue: voici vote compte courant </h1>
+
+    
+    <form id="clientForm">
+        <div id="errorMessage" class="error hidden">Vous êtes mineur, l'accès est interdit.</div>
+
+        <label for="nom">Nom :</label>
+        <input type="text" id="nom" required>
+
+        <label for="prenom">Prénom :</label>
+        <input type="text" id="prenom" required>
+
+        <label for="adresse">Adresse :</label>
+        <input type="text" id="adresse" required>
+
+        <label for="age">Âge :</label>
+        <input type="number" id="age" min="0" required>
+
+        <button type="submit">Valider les Informations</button>
+    </form>
+
+    <!-- Affichage du taux de découvert -->
+    <div id="tauxContainer" class="hidden taux-container">
+        Taux de Découvert : <span id="tauxDecouvert">8.5%</span>
+    </div>
+
+    <!-- Tableau des opérations -->
+    <table id="operationsTable" class="hidden">
+        <thead>
+            <tr>
+                <th>Date d'Opération</th>
+                <th>Date de Valeur</th>
+                <th>Débit</th>
+                <th>Crédit</th>
+                <th>Nb Jours Débit</th>
+                <th>Nb Jours Crédit</th>
+                <th>Solde</th>
+                <th>Nb Débiteur</th>
+                <th>CD</th>
+            </tr>
+        </thead>
+        <tbody></tbody>
+    </table>
+    <button id="addRow" class="hidden">Ajouter une Ligne</button>
+
+    <script>
+        const clientForm = document.getElementById("clientForm");
+        const errorMessage = document.getElementById("errorMessage");
+        const tauxContainer = document.getElementById("tauxContainer");
+        const operationsTable = document.getElementById("operationsTable");
+        const addRowButton = document.getElementById("addRow");
+        const tableBody = document.querySelector("#operationsTable tbody");
+        const tauxDecouvert = 8.5 / 100;
+
+        let solde = 0;
+
+        
+        clientForm.addEventListener("submit", (e) => {
+            e.preventDefault();
+            const age = parseInt(document.getElementById("age").value, 10);
+
+            if (age < 18) {
+                errorMessage.classList.remove("hidden");
+                return;
+            }
+
+            errorMessage.classList.add("hidden");
+            clientForm.classList.add("hidden");
+            tauxContainer.classList.remove("hidden");
+            operationsTable.classList.remove("hidden");
+            addRowButton.classList.remove("hidden");
+        });
+
+        
+        addRowButton.addEventListener("click", () => {
+            const newRow = document.createElement("tr");
+
+            ["dateOp", "dateVal", "debit", "credit", "nbjDebit", "nbjCredit", "solde", "nbDebiteur", "CD"].forEach((field) => {
+                const cell = document.createElement("td");
+
+                if (["dateOp", "debit", "credit"].includes(field)) {
+                    const input = document.createElement("input");
+                    input.type = field === "dateOp" ? "date" : "number";
+                    input.step = "0.01";
+                    input.oninput = () => updateTable();
+                    cell.appendChild(input);
+                } else {
+                    cell.textContent = "0";
+                }
+
+                newRow.appendChild(cell);
+            });
+
+            tableBody.appendChild(newRow);
+        });
+
+        // Mettre à jour le tableau
+        function updateTable() {
+            let previousDateVal = null;
+            let previousSolde = 0;
+
+            const rows = Array.from(tableBody.rows);
+            rows.sort((rowA, rowB) => {
+                const dateA = new Date(rowA.cells[1].textContent || rowA.cells[0].querySelector("input").value);
+                const dateB = new Date(rowB.cells[1].textContent || rowB.cells[0].querySelector("input").value);
+                return dateA - dateB;
+            });
+
+            rows.forEach((row, index) => {
+                tableBody.appendChild(row);
+
+                const cells = row.cells;
+                const dateOp = cells[0].querySelector("input").value;
+                const debit = parseFloat(cells[2].querySelector("input").value) || 0;
+                const credit = parseFloat(cells[3].querySelector("input").value) || 0;
+
+                let dateVal = null;
+                if (debit !== 0 && credit === 0) {
+                    dateVal = new Date(dateOp);
+                    dateVal.setDate(dateVal.getDate() - 1);
+                } else if (credit !== 0 && debit === 0) {
+                    dateVal = new Date(dateOp);
+                    dateVal.setDate(dateVal.getDate() + 1);
+                }
+                cells[1].textContent = dateVal ? dateVal.toISOString().split("T")[0] : "";
+
+                if (credit !== 0) {
+                    solde = previousSolde + credit;
+                } else if (debit !== 0) {
+                    solde = previousSolde - debit;
+                }
+                cells[6].textContent = solde.toFixed(2);
+                previousSolde = solde;
+
+                if (debit !== 0 && credit === 0) {
+                    const cdValue = debit * tauxDecouvert;
+                    cells[8].textContent = cdValue.toFixed(2);
+                } else {
+                    cells[8].textContent = "0";
+                }
+
+                if (index > 0 && dateVal) {
+                    const nbj = Math.abs((new Date(cells[1].textContent) - new Date(previousDateVal)) / (1000 * 60 * 60 * 24));
+                    if (debit !== 0) {
+                        cells[4].textContent = nbj;
+                        cells[5].textContent = "0";
+                    } else if (credit !== 0) {
+                        cells[5].textContent = nbj;
+                        cells[4].textContent = "0";
+                    }
+                }
+
+                if (debit !== 0 && solde < 0) {
+                    const nbDebiteur = Math.abs(solde) * (parseInt(cells[4].textContent) || 1);
+                    cells[7].textContent = nbDebiteur.toFixed(2);
+                } else {
+                    cells[7].textContent = "0";
+                }
+
+                previousDateVal = cells[1].textContent;
+            });
+        }
+    </script>
+</body>
+</html>
+
+
